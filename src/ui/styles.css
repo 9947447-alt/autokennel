@@ -1,0 +1,588 @@
+:root {
+  --bg-main: #f5f0e6;
+  --bg-panel: #ffffff;
+  --bg-hall: #ece3d4;
+  --text-main: #382e29;
+  --text-muted: #7c6f64;
+  --primary: #5a8c69;
+  --primary-hover: #487254;
+  --accent-gold: #d48806;
+  --accent-star: #faad14;
+  --accent-red: #cf1322;
+  --border-color: #dfd7ca;
+  --card-radius: 12px;
+  --shadow-sm: 0 2px 6px rgba(56, 46, 41, 0.06);
+  --shadow-md: 0 4px 14px rgba(56, 46, 41, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+#app {
+  width: 100%;
+  max-width: 900px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-main);
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.04);
+}
+
+/* 顶部资源条 */
+.resource-bar {
+  background: #ffffff;
+  border-bottom: 2px solid var(--border-color);
+  padding: 12px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: var(--shadow-sm);
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #2b221d;
+  letter-spacing: 0.5px;
+}
+
+.running-badge {
+  font-size: 0.75rem;
+  background: #e6f4ea;
+  color: #137333;
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.running-dot {
+  width: 6px;
+  height: 6px;
+  background: #1e8e3e;
+  border-radius: 50%;
+  animation: pulse-dot 1.2s infinite alternate;
+}
+
+@keyframes pulse-dot {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
+
+.metrics-section {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.metric-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fbf9f5;
+  border: 1px solid var(--border-color);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.metric-pill.scales {
+  color: #b36b00;
+  border-color: #ffd591;
+  background: #fffbe6;
+}
+
+.metric-pill.stars {
+  color: #d48806;
+}
+
+.metric-pill.vault-btn {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+  color: #389e0d;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.metric-pill.vault-btn:hover {
+  background: #d9f7be;
+  transform: translateY(-1px);
+}
+
+/* 餐厅大厅区域 */
+.hall-container {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--bg-hall);
+  border-bottom: 2px solid var(--border-color);
+}
+
+/* 工作人员展示栏 */
+.staff-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.staff-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.staff-card.unhired {
+  opacity: 0.6;
+  background: #fdfbf7;
+  border-style: dashed;
+}
+
+.staff-icon-wrap {
+  font-size: 1.8rem;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5eedf;
+  border-radius: 50%;
+}
+
+.staff-details {
+  flex: 1;
+}
+
+.staff-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  justify-content: space-between;
+}
+
+.staff-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: #e8e2d8;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+/* 厨房与餐区布局 */
+.main-floor {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 14px;
+  min-height: 280px;
+}
+
+@media (max-width: 680px) {
+  .main-floor {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 就餐大厅 */
+.dining-section {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.section-header {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.tables-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  flex: 1;
+}
+
+.table-slot {
+  background: #fcf9f2;
+  border: 1.5px solid #ded5c5;
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  position: relative;
+  min-height: 115px;
+  transition: all 0.2s ease;
+}
+
+.table-slot.occupied {
+  border-color: #b7eb8f;
+  background: #f6ffed;
+}
+
+.table-number {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  position: absolute;
+  top: 6px;
+  left: 8px;
+}
+
+.customer-avatar {
+  font-size: 2.2rem;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.empty-seat-placeholder {
+  font-size: 1.8rem;
+  opacity: 0.35;
+  margin-bottom: 4px;
+}
+
+.customer-species {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.thought-bubble {
+  position: absolute;
+  top: -22px;
+  background: #ffffff;
+  border: 1px solid #d9d9d9;
+  box-shadow: var(--shadow-sm);
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  animation: float-bubble 0.25s ease-out;
+}
+
+.thought-bubble.angry {
+  background: #fff1f0;
+  border-color: #ffa39e;
+  color: var(--accent-red);
+}
+
+.thought-bubble.happy {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+  color: #389e0d;
+}
+
+@keyframes float-bubble {
+  from { transform: translateY(4px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* 厨房区 */
+.kitchen-section {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.stoves-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.stove-card {
+  background: #faf7f2;
+  border: 1px solid #ded5c5;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stove-icon {
+  font-size: 1.6rem;
+}
+
+.stove-info {
+  flex: 1;
+}
+
+.stove-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+}
+
+.stove-dish-tag {
+  font-size: 0.72rem;
+  color: #137333;
+  margin-top: 2px;
+}
+
+/* 底部商店区域 */
+.shop-container {
+  background: #ffffff;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 2px solid var(--border-color);
+}
+
+.shop-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.shop-title {
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shop-notice {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.shop-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.shop-tab-btn {
+  background: none;
+  border: none;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.shop-tab-btn.active {
+  background: #e8f3ec;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.shop-card {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #faf8f5;
+  transition: border-color 0.2s;
+}
+
+.shop-card-info {
+  margin-bottom: 8px;
+}
+
+.shop-card-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.shop-card-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.shop-buy-btn {
+  width: 100%;
+  padding: 7px 0;
+  border: none;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.shop-buy-btn:hover:not(:disabled) {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.shop-buy-btn:disabled {
+  background: #dcd6cd;
+  color: #8c827a;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.shop-buy-btn.bought {
+  background: #eef5f0;
+  color: #528060;
+  border: 1px solid #b7eb8f;
+  cursor: default;
+}
+
+/* 离线收益弹窗 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+}
+
+.modal-content {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: var(--shadow-md);
+  text-align: center;
+  animation: modal-pop 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+@keyframes modal-pop {
+  from { transform: scale(0.85); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-icon {
+  font-size: 3rem;
+  margin-bottom: 8px;
+}
+
+.modal-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.modal-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.modal-amount {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+  margin-bottom: 16px;
+}
+
+.modal-claim-btn {
+  width: 100%;
+  padding: 12px 0;
+  background: var(--primary);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(90, 140, 105, 0.3);
+  transition: all 0.2s;
+}
+
+.modal-claim-btn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+}
