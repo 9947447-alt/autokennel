@@ -68,6 +68,8 @@ export class GameSimulation {
   private naturalArrivalTimer: number = 2.0; // 首次2秒后快速进店
   private customerSeq: number = 1;
   private orderSeq: number = 1;
+  /** 真实生成次数（含同 tick 进 1 出 1），禁止用 customers.length 差值代替 */
+  public spawnedCustomers = 0;
 
   // 依赖注入随机函数，便于测试中设定种子或确定性测试
   public rng: () => number;
@@ -153,6 +155,7 @@ export class GameSimulation {
     };
 
     this.state.customers.push(customer);
+    this.spawnedCustomers += 1;
     return customer;
   }
 

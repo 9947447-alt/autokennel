@@ -1,12 +1,49 @@
-import test from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert';
 import { GameSimulation, createInitialState } from '../src/sim/engine.ts';
 import { ShopManager } from '../src/sim/shop.ts';
 import { OfflineManager, MAX_OFFLINE_SECONDS } from '../src/sim/offline.ts';
-import type { GameState } from '../src/sim/types.ts';
+import { StorageManager, SAVE_STORAGE_KEY } from '../src/sim/storage.ts';
+
+/** 恒 0.5：点餐 roll < 0.7，始终点已学菜（与招客员对照同一确定性 rng） */
+const COMPLETABLE_RNG = () => 0.5;
+/** 恒 0.99：点餐 roll >= 0.7，强制点未学菜，气走零入账 */
+const ADVERSARIAL_RNG = () => 0.99;
+
+function installMemoryLocalStorage(): void {
+  const store = new Map<string, string>();
+  const mock: Storage = {
+    get length() {
+      return store.size;
+    },
+    clear() {
+      store.clear();
+    },
+    getItem(key: string) {
+      return store.has(key) ? store.get(key)! : null;
+    },
+    key(index: number) {
+      return [...store.keys()][index] ?? null;
+    },
+    removeItem(key: string) {
+      store.delete(key);
+    },
+    setItem(key: string, value: string) {
+      store.set(key, String(value));
+    },
+  };
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    enumerable: true,
+    writable: true,
+    value: mock,
+  });
+}
+
+installMemoryLocalStorage();
 
 test('无UI模拟测试：推进 600 tick（60秒）鳞币单调不减且服务完成数 > 0', () => {
-  const sim = new GameSimulation();
+  const sim = new GameSimulation(undefined, COMPLETABLE_RNG);
 
   let prevScales = sim.state.scales;
 
@@ -32,6 +69,25 @@ test('无UI模拟测试：推进 600 tick（60秒）鳞币单调不减且服务�
   assert(
     sim.state.scales > 0,
     `600 tick 后鳞币应大于 0，实际为: ${sim.state.scales}`
+  );
+});
+
+test('对抗种子：恒 0.99 点未学菜气走且零入账', () => {
+  const sim = new GameSimulation(undefined, ADVERSARIAL_RNG);
+
+  for (let i = 0; i < 600; i++) {
+    sim.tick(0.1);
+  }
+
+  assert.strictEqual(
+    sim.state.stats.completedServices,
+    0,
+    '对抗种子不应完单'
+  );
+  assert.strictEqual(sim.state.scales, 0, '气走不得入账鳞币');
+  assert(
+    sim.state.stats.unservedAngryCustomers > 0,
+    `对抗种子应产生气走，实际: ${sim.state.stats.unservedAngryCustomers}`
   );
 });
 
@@ -74,32 +130,20 @@ test('点餐规则测试：点到未学菜谱客人离开且不给钱', () => {
 });
 
 test('员工效果测试：雇佣招客员后单位时间进客数高于未雇佣', () => {
-  // 模拟未雇佣招客员情况（跑 1000 tick 即 100 秒）
-  const simNoGreeter = new GameSimulation(undefined, () => 0.5); // 确定性伪随机
-  let spawnedNoGreeter = 0;
+  const simNoGreeter = new GameSimulation(undefined, COMPLETABLE_RNG);
   for (let i = 0; i < 1000; i++) {
-    const beforeCount = simNoGreeter.state.customers.length;
     simNoGreeter.tick(0.1);
-    if (simNoGreeter.state.customers.length > beforeCount) {
-      spawnedNoGreeter++;
-    }
   }
 
-  // 模拟已雇佣招客员情况
-  const simWithGreeter = new GameSimulation(undefined, () => 0.5);
+  const simWithGreeter = new GameSimulation(undefined, COMPLETABLE_RNG);
   simWithGreeter.state.staff.greeter.hired = true;
-  let spawnedWithGreeter = 0;
   for (let i = 0; i < 1000; i++) {
-    const beforeCount = simWithGreeter.state.customers.length;
     simWithGreeter.tick(0.1);
-    if (simWithGreeter.state.customers.length > beforeCount) {
-      spawnedWithGreeter++;
-    }
   }
 
   assert(
-    spawnedWithGreeter > spawnedNoGreeter,
-    `雇佣招客员单位时间进客 (${spawnedWithGreeter}) 应高于未雇佣 (${spawnedNoGreeter})`
+    simWithGreeter.spawnedCustomers > simNoGreeter.spawnedCustomers,
+    `雇佣招客员真实生成次数 (${simWithGreeter.spawnedCustomers}) 应高于未雇佣 (${simNoGreeter.spawnedCustomers})`
   );
 });
 
@@ -161,7 +205,7 @@ test('离线仓收益与 2 小时硬顶测试', () => {
 });
 
 test('经济数值测试：挂机 3 分钟内应能买到第二张桌', () => {
-  const sim = new GameSimulation();
+  const sim = new GameSimulation(undefined, COMPLETABLE_RNG);
 
   // 推进 3 分钟（180 秒 = 1800 tick）
   for (let i = 0; i < 1800; i++) {
@@ -180,26 +224,153 @@ test('经济数值测试：挂机 3 分钟内应能买到第二张桌', () => {
   assert.strictEqual(sim.state.tables.length, 2);
 });
 
-test('数据持久化与一致性测试：存档与重载完全一致', () => {
-  const sim = new GameSimulation();
+describe('StorageManager', { concurrency: false }, () => {
+  test('saveGame/loadGame 锁桌数菜谱员工鳞币并清空瞬时态', () => {
+    StorageManager.clearSave();
 
-  // 改变部分游戏状态
-  sim.state.scales = 128;
-  sim.state.stars = 42;
-  sim.state.tables.push({ id: 2, name: '原木单人桌 2 号', customerId: null, servedRecipeId: null });
-  sim.state.stoves.push({ id: 2, name: '精炼铁质炉 2 号', currentOrder: null });
-  sim.state.unlockedRecipeIds.push('prism_clam');
-  sim.state.staff.greeter.hired = true;
-  sim.state.staff.handyman.hired = true;
+    const sim = new GameSimulation(undefined, COMPLETABLE_RNG);
+    sim.state.scales = 128;
+    sim.state.stars = 42;
+    sim.state.tables.push({
+      id: 2,
+      name: '原木单人桌 2 号',
+      customerId: null,
+      servedRecipeId: null,
+    });
+    sim.state.stoves.push({ id: 2, name: '精炼铁质炉 2 号', currentOrder: null });
+    sim.state.unlockedRecipeIds.push('prism_clam');
+    sim.state.staff.greeter.hired = true;
+    sim.state.staff.handyman.hired = true;
 
-  const serialized = JSON.stringify(sim.state);
-  const restored = JSON.parse(serialized) as GameState;
+    const seated = sim.spawnCustomer();
+    sim.tick(0.1);
+    sim.handleCustomerOrder(seated);
+    assert.ok(sim.state.customers.length > 0, '存档前应有在场客人');
+    assert.ok(
+      sim.state.kitchenQueue.length > 0,
+      '存档前应有厨房队列订单'
+    );
+    assert.ok(
+      sim.state.tables.some((t) => t.customerId !== null),
+      '存档前应有占桌客人'
+    );
 
-  assert.strictEqual(restored.scales, 128);
-  assert.strictEqual(restored.stars, 42);
-  assert.strictEqual(restored.tables.length, 2);
-  assert.strictEqual(restored.stoves.length, 2);
-  assert.deepStrictEqual(restored.unlockedRecipeIds, ['seaweed_stick', 'prism_clam']);
-  assert.strictEqual(restored.staff.greeter.hired, true);
-  assert.strictEqual(restored.staff.handyman.hired, true);
+    assert.strictEqual(StorageManager.saveGame(sim.state), true);
+    assert.ok(localStorage.getItem(SAVE_STORAGE_KEY), 'saveGame 必须写入 localStorage');
+
+    const loaded = StorageManager.loadGame();
+    const restored = loaded.state;
+
+    assert.strictEqual(restored.scales, 128);
+    assert.strictEqual(restored.tables.length, 2);
+    assert.deepStrictEqual(restored.unlockedRecipeIds, ['seaweed_stick', 'prism_clam']);
+    assert.strictEqual(restored.staff.greeter.hired, true);
+    assert.strictEqual(restored.staff.handyman.hired, true);
+
+    assert.deepStrictEqual(restored.customers, []);
+    assert.deepStrictEqual(restored.kitchenQueue, []);
+    for (const table of restored.tables) {
+      assert.strictEqual(table.customerId, null);
+      assert.strictEqual(table.servedRecipeId, null);
+    }
+    for (const stove of restored.stoves) {
+      assert.strictEqual(stove.currentOrder, null);
+    }
+  });
+
+  test('同一 lastTimestamp 连 load 不双倍仓且不破顶', () => {
+    StorageManager.clearSave();
+
+    const state = createInitialState();
+    state.scales = 128;
+    state.unlockedRecipeIds.push('prism_clam');
+    state.staff.greeter.hired = true;
+    state.staff.handyman.hired = true;
+    state.tables.push({
+      id: 2,
+      name: '原木单人桌 2 号',
+      customerId: 'cust_dirty',
+      servedRecipeId: 'seaweed_stick',
+    });
+    state.stoves.push({
+      id: 2,
+      name: '精炼铁质炉 2 号',
+      currentOrder: {
+        id: 'ord_dirty',
+        tableId: 2,
+        customerId: 'cust_dirty',
+        recipeId: 'prism_clam',
+        totalCookTime: 5,
+        remainingCookTime: 2,
+      },
+    });
+    state.customers.push({
+      id: 'cust_dirty',
+      species: '栗毛松鼠',
+      avatar: '🌰',
+      state: 'WAITING_FOOD',
+      tableId: 2,
+      targetRecipeId: 'prism_clam',
+      stateTimer: 1,
+    });
+    state.kitchenQueue.push({
+      id: 'ord_queued',
+      tableId: 1,
+      customerId: 'cust_queued',
+      recipeId: 'seaweed_stick',
+      totalCookTime: 3,
+      remainingCookTime: 1,
+    });
+
+    const t0 = 1_700_000_000_000;
+    let now = t0;
+    const originalNow = Date.now;
+    Date.now = () => now;
+
+    try {
+      assert.strictEqual(StorageManager.saveGame(state), true);
+
+      now = t0 + 5 * 60 * 60 * 1000;
+
+      const first = StorageManager.loadGame();
+      const rate = OfflineManager.calculateOnlineRatePerSecond(first.state);
+      const cap = rate * MAX_OFFLINE_SECONDS;
+
+      assert.strictEqual(first.offlineResult?.wasCapped, true);
+      assert.ok(first.state.offlineVault > 0, '5 小时离线应写入离线仓');
+      assert(
+        first.state.offlineVault <= cap,
+        `离线仓 (${first.state.offlineVault}) 应 <= rate * 7200 (${cap})`
+      );
+      assert.deepStrictEqual(first.state.customers, []);
+      assert.deepStrictEqual(first.state.kitchenQueue, []);
+      for (const table of first.state.tables) {
+        assert.strictEqual(table.customerId, null);
+        assert.strictEqual(table.servedRecipeId, null);
+      }
+      for (const stove of first.state.stoves) {
+        assert.strictEqual(stove.currentOrder, null);
+      }
+
+      const vaultAfterFirst = first.state.offlineVault;
+      const second = StorageManager.loadGame();
+      assert.strictEqual(
+        second.state.offlineVault,
+        vaultAfterFirst,
+        '同一 lastTimestamp 连 load 不得双倍离线仓'
+      );
+      assert(second.state.offlineVault <= cap);
+
+      assert.strictEqual(StorageManager.saveGame(first.state), true);
+      const third = StorageManager.loadGame();
+      assert.strictEqual(
+        third.state.offlineVault,
+        vaultAfterFirst,
+        'load 后立刻再 save/load 不得再叠加离线仓'
+      );
+      assert(third.state.offlineVault <= cap);
+    } finally {
+      Date.now = originalNow;
+    }
+  });
 });
